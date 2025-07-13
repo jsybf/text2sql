@@ -77,10 +77,14 @@ internal class SchemaIngestCmd : CliktCommand("ingest-schema") {
                     else -> throw IllegalStateException("only yaml, json file is supported for table-desc file")
                 }
 
-
-                encoder
-                    .decodeFromString<TableDesc>(tableDocStr)
-                    .also { tableDoc -> logger.info("got schema doc of schema={} table={}", tableDoc.tableName.schemaName, tableDoc.tableName.tableName) }
+                try {
+                    encoder
+                        .decodeFromString<TableDesc>(tableDocStr)
+                        .also { tableDoc -> logger.info("got schema doc of schema={} table={}", tableDoc.tableName.schemaName, tableDoc.tableName.tableName) }
+                } catch (e: Exception) {
+                    logger.error("failed to parse ${path}\n cause: ${e.message}")
+                    throw e
+                }
             }
     }
 }

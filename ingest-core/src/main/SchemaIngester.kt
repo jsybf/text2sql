@@ -36,17 +36,71 @@ data class TableName(
 )
 
 @Serializable
+data class TblRelation(
+    val fromTbl: Column,
+    val toTbl: Column,
+    val relationType: RelationType,
+) {
+    @Serializable
+    data class Column(
+        val schema: String,
+        val table: String,
+        val column: String,
+    )
+
+    class DBMLTblRelationParseException(val msg: String) : Exception(msg)
+
+    companion object {
+        private val dbmlSpec = Regex("""\s*(.+)\.(.+)\.(.+)\s+([<->])\s+(.+)\.(.+)\.(.+)\s*""")
+        fun parseDBML(dbml: String): Result<TblRelation> = runCatching {
+            dbmlSpec
+                .find(dbml)
+                ?.destructured
+                ?.let { (fromSchema, fromTbl, fromCol, typeStr, toSchema, toTbl, toCol) ->
+                    TblRelation(
+                        fromTbl = Column(
+                            fromSchema,
+                            fromTbl,
+                            fromCol
+                        ),
+                        toTbl = Column(
+                            toSchema,
+                            toTbl,
+                            toCol
+                        ),
+                        relationType = RelationType.fromDBML(typeStr),
+                    )
+                }
+                ?: throw DBMLTblRelationParseException("failed to parse '$dbml'")
+        }
+    }
+}
+
+enum class RelationType(val dbml: String) {
+    ONE_TO_ONE("-"), MANY_TO_ONE(">"), ONE_TO_MANY("<");
+
+    class RelationTypeParseException(val msg: String) : Exception(msg)
+    companion object {
+        fun fromDBML(dbml: String): RelationType =
+            RelationType.entries.find { it.dbml == dbml } ?: throw RelationTypeParseException("can't map '$dbml' to dbml relation expression")
+    }
+}
+
+@Serializable
 data class TableDesc(
     val tableName: TableName,
-    val purpose: String,
-    val summary: String,
-    val dependenciesThought: String,
-    val keys: String,
-    val connectedTables: List<TableName>,
+    val embeddingSummary: String,
+    val description: String,
+    val connectedTables: List<TblRelation>,
     val columns: List<Column>,
-    val strongEntities: List<String>,
-    val weakEntities: List<String>,
+    val entities: List<String>,
 ) {
+    @Serializable
+    data class TblRelation(
+        val relationship: String,
+        val notes: String
+    )
+
     @Serializable
     data class Column(
         val column: String,
@@ -57,16 +111,13 @@ data class TableDesc(
     table: ${this.tableName}
     
     # description
-    ${this.summary}
-    ${this.purpose}
+    ${this.embeddingSummary}
     """.trimIndent()
 
     fun toDescriptionWithDependencies(): String = """
     table: ${this.tableName}
     
     # description
-    ${this.summary}
-    ${this.purpose}
-    ${this.dependenciesThought}
+    ${this.embeddingSummary}
     """.trimIndent()
 }

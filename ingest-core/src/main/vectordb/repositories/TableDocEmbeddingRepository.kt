@@ -60,7 +60,7 @@ class TableDocEmbeddingRepository(
     }
 
     suspend fun insertEntityCategory(tableDocId: Int, tableDesc: TableDesc) = newSuspendedTransaction(db = db) {
-        ((tableDesc.strongEntities) + (tableDesc.weakEntities)).forEach { entity ->
+        tableDesc.entities.forEach { entity ->
             val embedding = embeddingModel.embed(entity).content().vector()
             TableDocEmbddingTbl.insertAndGetId {
                 it[TableDocEmbddingTbl.tableDoc] = tableDocId

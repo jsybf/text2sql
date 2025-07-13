@@ -76,15 +76,13 @@ class TableDescGenerator(
      *
      * @param tableDoc markdown document about table schema
      * @param requestNum the number of same llm request to [TableEntitiesExtractionEndpoint].
-     * @param frequencyStrong the numeber of entity appearance in multiple llm request treated as strong entity
-     * @param frequencyWeek the numeber of entity appearance in multiple llm request treated as strong entity
+     * @param entityFrequency the numeber of entity appearance in multiple llm request treated as strong entity
      */
     private suspend fun schemaIngestLogic(
         tableDoc: String,
         tblName: TableName, // for logging
         requestNum: Int = 7,
-        frequencyStrong: Int = 3,
-        frequencyWeek: Int = 2,
+        entityFrequency: Int = 3,
         interval: Duration = 1.seconds,
     ): TableDesc = coroutineScope {
         logger.debug("reqeusting for transforming table-doc(.md) doc to table-desc(.json) (schema={},table={}) ", tblName.tableName, tblName.schemaName)
@@ -101,13 +99,11 @@ class TableDescGenerator(
             .groupingBy { it }
             .eachCount()
 
-        val strongEntties = entityFrequecies.filterValues { frequency -> frequencyStrong < frequency }.keys.toList()
-        val weekEntities = entityFrequecies.filterValues { frequency -> frequencyWeek < frequency }.keys.toList()
+        val entities = entityFrequecies.filterValues { frequency -> entityFrequency < frequency }.keys.toList()
 
         return@coroutineScope tableDescWithoutEntities.copy(
             tableName = tblName,
-            strongEntities = strongEntties,
-            weakEntities = weekEntities
+            entities = entities,
         )
     }
 
