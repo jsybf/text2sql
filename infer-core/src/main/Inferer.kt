@@ -6,10 +6,9 @@ import io.ybigta.text2sql.infer.core.logic.generate.SqlGenerateLogic
 import io.ybigta.text2sql.infer.core.logic.qa_retrieve.QaRetrieveLogic
 import io.ybigta.text2sql.infer.core.logic.qa_retrieve.QaRetrieveRepository
 import io.ybigta.text2sql.infer.core.logic.qa_retrieve.QaRetrieveResult
-import io.ybigta.text2sql.infer.core.logic.table_refine.TableRefineLogic
-import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblSimiRepository
-import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblSimiRetrieveLogic
-import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblSimiRetrieveResult
+import io.ybigta.text2sql.infer.core.logic.qa_retrieve.TblRetrieveRepository
+import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblRetrieveLogic
+import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblRetrieveResult
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
@@ -19,9 +18,8 @@ import java.nio.file.Path
  * @param dialect dialect name of sql that will be generated
  */
 class Inferer(
-    private val tblSimiRetrieveLogic: TblSimiRetrieveLogic,
+    private val tblRetrieveLogic: TblRetrieveLogic,
     private val qaRetrieveLogic: QaRetrieveLogic,
-    private val tableRefineLogic: TableRefineLogic,
     private val sqlGenerateLogic: SqlGenerateLogic,
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
@@ -31,19 +29,7 @@ class Inferer(
      */
     suspend fun infer(question: Question): InferResult = coroutineScope {
 
-        val retrievedTblList: Deferred<List<TblSimiRetrieveResult>> = async {
-            val retrievedTables = tblSimiRetrieveLogic
-                .retrieve(question)
-
-            val selectedTables = retrievedTables
-                .map { it.tableDesc }
-                .let { tableDescList -> tableRefineLogic.refineTableDesc(question.question, tableDescList, "") }
-                .let { selectedTableNames -> retrievedTables.filter { it.tableDesc.tableName in selectedTableNames } }
-                .also { logger.debug("received table refine llm output") }
-
-            selectedTables
-        }
-
+        val retrievedTblList: Deferred<List<TblRetrieveResult>> = async { tblRetrieveLogic.retrieve(question) }
         val retrievedQaList: Deferred<List<QaRetrieveResult>> = async { qaRetrieveLogic.retrieve(question) }
 
         val generatedSql = sqlGenerateLogic.generateCode(
@@ -62,11 +48,12 @@ class Inferer(
 
     companion object {
         fun fromConfig(config: InferConfig) = Inferer(
-            TblSimiRetrieveLogic(
-                TblSimiRepository(
+            TblRetrieveLogic(
+                TblRetrieveRepository(
                     db = config.pgvector,
                     embeddingModel = config.embeddingModel
-                )
+                ),
+                LLMEndpointBuilder.SqlGeneration.buildTblSelectionAdjustEndpoint(config)
             ),
             QaRetrieveLogic(
                 QaRetrieveRepository(
@@ -77,9 +64,6 @@ class Inferer(
                 0.13F, // level 2
                 0.15F, // level 3
                 0.15F, // level 4
-            ),
-            TableRefineLogic(
-                LLMEndpointBuilder.SqlGeneration.buildTableRefinementEndpoint(config),
             ),
             SqlGenerateLogic(
                 LLMEndpointBuilder.SqlGeneration.buildQuestionEntityExtractionEndpoint(config),
@@ -92,7 +76,7 @@ class Inferer(
 data class InferResult(
     val question: String,
     val sql: String,
-    val tblRetrivedResults: List<TblSimiRetrieveResult>,
+    val tblRetrivedResults: List<TblRetrieveResult>,
     val qaRetrieveResults: List<QaRetrieveResult>
 )
 
@@ -122,7 +106,7 @@ fun main() {
                 result.tblRetrivedResults.sortedBy { it.distance }.forEach { tbl ->
                     addJsonObject {
                         put("distance", tbl.distance)
-                        put("embedding_category", tbl.embeddingCategory.name)
+                        put("embedding_category", tbl.category.name)
                         put("table", tbl.tableDesc.tableName.tableName)
                     }
                 }

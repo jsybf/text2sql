@@ -5,9 +5,9 @@ import io.ybigta.text2sql.infer.core.Inferer
 import io.ybigta.text2sql.infer.core.Question
 import io.ybigta.text2sql.infer.core.config.InferConfig
 import io.ybigta.text2sql.infer.core.logic.qa_retrieve.QaRetrieveResult
-import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblSimiRetrieveResult
+import io.ybigta.text2sql.infer.core.logic.table_retrieve.RetrieveCatgory
+import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblRetrieveResult
 import io.ybigta.text2sql.ingest.TableName
-import io.ybigta.text2sql.ingest.vectordb.tables.TableDocEmbddingTbl.EmbeddingCategory
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 
@@ -46,13 +46,13 @@ data class InferResp(
 @Serializable
 data class TblRetrieveResp(
     val tableName: TableName,
-    val embeddingCategory: EmbeddingCategory,
-    val distance: Float
+    val embeddingCategory: RetrieveCatgory,
+    val distance: Float?
 ) {
     companion object {
-        fun from(tblRetrieve: TblSimiRetrieveResult) = TblRetrieveResp(
+        fun from(tblRetrieve: TblRetrieveResult) = TblRetrieveResp(
             tableName = tblRetrieve.tableDesc.tableName,
-            embeddingCategory = tblRetrieve.embeddingCategory,
+            embeddingCategory = tblRetrieve.category,
             distance = tblRetrieve.distance
         )
     }

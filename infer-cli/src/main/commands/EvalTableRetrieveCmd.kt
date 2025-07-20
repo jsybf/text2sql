@@ -13,11 +13,10 @@ import io.ybigta.text2sql.infer.cli.writeJson
 import io.ybigta.text2sql.infer.core.Question
 import io.ybigta.text2sql.infer.core.config.InferConfig
 import io.ybigta.text2sql.infer.core.config.LLMEndpointBuilder
-import io.ybigta.text2sql.infer.core.logic.table_refine.TableRefineLogic
-import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblSimiRepository
-import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblSimiRetrieveLogic
-import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblSimiRetrieveResult
-import io.ybigta.text2sql.ingest.vectordb.tables.TableDocEmbddingTbl.EmbeddingCategory
+import io.ybigta.text2sql.infer.core.logic.qa_retrieve.TblRetrieveRepository
+import io.ybigta.text2sql.infer.core.logic.table_retrieve.RetrieveCatgory
+import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblRetrieveLogic
+import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblRetrieveResult
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.runBlocking
@@ -47,7 +46,7 @@ private data class ResultFileSpec(
 
     @Serializable
     data class DistancePerCategoryMatric(
-        val category: EmbeddingCategory,
+        val category: RetrieveCatgory,
         val avgDistance: Float,
         val count: Int
     )
@@ -74,13 +73,13 @@ private data class ResultFileSpec(
     @Serializable
     data class RetrieveResult(
         val table: String,
-        val embeddingCategory: EmbeddingCategory,
-        val distance: Float
+        val category: RetrieveCatgory,
+        val distance: Float?
     ) {
         companion object {
-            fun from(retrieveResult: TblSimiRetrieveResult) = RetrieveResult(
+            fun from(retrieveResult: TblRetrieveResult) = RetrieveResult(
                 table = "${retrieveResult.tableDesc.tableName.schemaName}.${retrieveResult.tableDesc.tableName.tableName}",
-                embeddingCategory = retrieveResult.embeddingCategory,
+                category = retrieveResult.category,
                 distance = retrieveResult.distance
             )
         }
@@ -102,26 +101,18 @@ internal class EvalTableRetrieveCmd() : CliktCommand("eval-table-retrieve") {
         val inferConfig = InferConfig.fromConfigFile(inferConfigFile)
         val testDataSet = readJson<List<TestData>>(testDataFile, logger)!!
 
-        val tblRetrieveLogic = TblSimiRetrieveLogic(
-            TblSimiRepository(
+        val tblRetrieveLogic = TblRetrieveLogic(
+            TblRetrieveRepository(
                 db = inferConfig.pgvector,
                 embeddingModel = inferConfig.embeddingModel
-            )
+            ),
+            LLMEndpointBuilder.SqlGeneration.buildTblSelectionAdjustEndpoint(inferConfig)
         )
-
-        val tableRefineLogic = TableRefineLogic(
-            LLMEndpointBuilder.SqlGeneration.buildTableRefinementEndpoint(inferConfig),
-        )
-
         // retrieve tables
         val processedCnt = AtomicInteger(0)
         val retrieveResults = testDataSet.channelFlowMapAsync(interval.milliseconds) { data ->
             val question = Question.fromConfig(data.question, inferConfig, dispatcher)
             val retrievedTables = tblRetrieveLogic.retrieve(question)
-                .let { retrieveResults: List<TblSimiRetrieveResult> ->
-                    val selectedTableNames = tableRefineLogic.refineTableDesc(data.question, retrieveResults.map { it.tableDesc }, "")
-                    retrieveResults.filter { it.tableDesc.tableName in selectedTableNames }
-                }
 
             logger.info("done {}/{}", processedCnt.incrementAndGet(), testDataSet.count())
             val output = ResultFileSpec.ResultData(
@@ -171,11 +162,11 @@ internal class EvalTableRetrieveCmd() : CliktCommand("eval-table-retrieve") {
     private fun evalDistancePerCategorySpec(outputData: List<ResultFileSpec.ResultData>): List<ResultFileSpec.DistancePerCategoryMatric> {
         return outputData
             .flatMap { data -> data.retrievedTables.filter { retrieveTable -> data.answerTables.contains(retrieveTable.table) } }
-            .groupBy { it.embeddingCategory }
+            .groupBy { it.category }
             .map { (category, retrievedTable) ->
                 ResultFileSpec.DistancePerCategoryMatric(
                     category = category,
-                    avgDistance = retrievedTable.map { it.distance }.average().toFloat(),
+                    avgDistance = retrievedTable.map { it.distance }.filterNotNull().average().toFloat(),
                     count = retrievedTable.count()
                 )
             }

@@ -20,7 +20,7 @@ class SqlGenerateLogic(
         qaList: List<QaRetrieveResult>,
     ): String {
         logger.info("requesting sql generation for question: {}", question.question)
-        val requestMsg = buildRequestStr(question, tableSchemaList, qaList, "postgres")
+        val requestMsg = buildRequestStr(question, tableSchemaList, qaList, dialect)
         logger.trace("request payload: \n {}", requestMsg)
         return sqlGenerationEndpoint.request(requestMsg)
     }
