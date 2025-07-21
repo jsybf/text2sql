@@ -2,7 +2,7 @@ modelVersion: 4.0.0
 
 groupId: io.ybigta
 artifactId: text2sql
-version: 0.0.2
+version: 0.0.3
 
 packaging: pom
 
