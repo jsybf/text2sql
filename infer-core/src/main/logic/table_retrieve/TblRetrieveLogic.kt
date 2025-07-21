@@ -1,7 +1,5 @@
 package io.ybigta.text2sql.infer.core.logic.table_retrieve
 
-import dev.langchain4j.service.UserMessage
-import dev.langchain4j.service.V
 import io.ybigta.text2sql.infer.core.Question
 import io.ybigta.text2sql.infer.core.logic.qa_retrieve.TblRetrieveRepository
 import io.ybigta.text2sql.ingest.TableDesc
@@ -11,6 +9,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 
 
@@ -35,7 +35,12 @@ class TblRetrieveLogic(
         val retrievedTbls = retrieveTblBySimi(question)
         logger.debug("retrived table from vectordb")
         // add or remove tables from retrievedTbls by llm
-        val adjustedTbls = tblSelectionAdjustEndpoint.request(question.question, retrievedTbls.map { it.tableDesc })
+        val adjustedTbls = tblSelectionAdjustEndpoint.request(
+            TblSelectionAdjustEndpoint
+                .Payload
+                .from(question.question, retrievedTbls.map { it.tableDesc })
+                .let { Json { prettyPrint = true }.encodeToString(it) }
+        )
         logger.debug("adjusted table selection by llm")
         // find table description for newly added table(category = RULE)
         val tblAddedByRule = adjustedTbls
@@ -54,15 +59,6 @@ class TblRetrieveLogic(
 
     private suspend fun retrieveTblBySimi(question: Question): List<TblRetrieveResult> = coroutineScope {
         val retrieveRequests: List<List<Deferred<List<TblRetrieveResult>>>> = listOf(
-            // listOf(
-            //     async {
-            //         tblRetrieveRepository.retrieve(
-            //             queryText = question.normalizedQ.await(),
-            //             filterCondition = setOf(EmbeddingCategory.SUMMARY),
-            //             resultN = resultN
-            //         )
-            //     },
-            // ),
             question.extractedEntities.await()
                 .map { entity ->
                     async {
@@ -84,14 +80,24 @@ class TblRetrieveLogic(
 }
 
 interface TblSelectionAdjustEndpoint {
-    @UserMessage(
-        """
-            question: {{ question }}
-            tables: {{ tables }}
-        """
-    )
-    fun request(
-        @V("question") question: String,
-        @V("tables") tableNames: List<TableDesc>
-    ): List<TableName>
+    fun request(payload: String): List<TableName>
+
+    @Serializable
+    data class Payload(
+        val question: String,
+        val tables: List<TableSelectDesc>
+    ) {
+        @Serializable
+        data class TableSelectDesc(
+            val tableName: TableName,
+            val tableDescription: String
+        )
+
+        companion object {
+            fun from(question: String, tables: List<TableDesc>) = Payload(
+                question = question,
+                tables = tables.map { TableSelectDesc(tableName = it.tableName, tableDescription = it.description) }
+            )
+        }
+    }
 }
