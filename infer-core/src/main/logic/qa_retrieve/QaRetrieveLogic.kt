@@ -52,7 +52,7 @@ class QaRetrieveRepository(
                     .map { schemaDotTableNameFormat.find(it)?.groupValues?.get(1) ?: it }
 
                 val sourceTblDocs = sourceTblNames.map { name -> findDocByTableName(name)!! }
-                QaRetrieveResult(qaDto.structuredQa,qaDto.answer, dist, sourceTblDocs, serachLevel)
+                QaRetrieveResult(qaDto.structuredQa, qaDto.answer, dist, sourceTblDocs, serachLevel)
             }
     }
 

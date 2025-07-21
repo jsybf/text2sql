@@ -7,8 +7,8 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
-import io.ybigta.text2sql.infer.core.Inferer
 import io.ybigta.text2sql.infer.cli.Langchain4jLogger
+import io.ybigta.text2sql.infer.core.Inferer
 import io.ybigta.text2sql.infer.core.Question
 import io.ybigta.text2sql.infer.core.config.InferConfig
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
