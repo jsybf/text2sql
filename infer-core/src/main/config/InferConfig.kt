@@ -3,6 +3,7 @@ package io.ybigta.text2sql.infer.core.config
 import com.charleskorn.kaml.Yaml
 import dev.langchain4j.model.chat.Capability
 import dev.langchain4j.model.chat.ChatModel
+import dev.langchain4j.model.chat.listener.ChatModelListener
 import dev.langchain4j.model.embedding.EmbeddingModel
 import dev.langchain4j.model.openai.OpenAiChatModel
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel
@@ -11,7 +12,7 @@ import io.ybigta.text2sql.infer.core.QuestionEntityExtractionEndpoint
 import io.ybigta.text2sql.infer.core.QuestionMainClauseExtractionEndpoint
 import io.ybigta.text2sql.infer.core.QuestionNormalizeEndpoint
 import io.ybigta.text2sql.infer.core.logic.generate.SqlGenerationEndpoint
-import io.ybigta.text2sql.infer.core.logic.table_refine.TableRefinementEndpoint
+import io.ybigta.text2sql.infer.core.logic.table_retrieve.TblSelectionAdjustEndpoint
 import kotlinx.serialization.decodeFromString
 import org.jetbrains.exposed.sql.Database
 import java.nio.file.Path
@@ -26,7 +27,8 @@ import kotlin.io.path.readText
  *  - can't specifiy user prompt at ingest_config.yaml. only system prompt is allowd because of Langchain4J
  */
 class InferConfig(
-    val config: InferConfigFileSpec
+    val config: InferConfigFileSpec,
+    private val listeners: List<ChatModelListener> = emptyList()
 ) {
     val llmModels: Map<String, ChatModel>
 
@@ -42,6 +44,7 @@ class InferConfig(
                     .modelName(modelName)
                     .supportedCapabilities(Capability.RESPONSE_FORMAT_JSON_SCHEMA)
                     .strictJsonSchema(true)
+                    .listeners(listeners)
                     .logRequests(false)
                     .logResponses(false)
                     .build()
@@ -64,12 +67,12 @@ class InferConfig(
     }
 
     companion object {
-        fun fromConfigFile(path: Path): InferConfig = path
+        fun fromConfigFile(path: Path, listeners: List<ChatModelListener> = emptyList()): InferConfig = path
             .toAbsolutePath()
             .normalize()
             .readText()
             .let { Yaml.default.decodeFromString<InferConfigFileSpec>(it) }
-            .let { config -> InferConfig(config) }
+            .let { config -> InferConfig(config, listeners) }
     }
 }
 
@@ -101,10 +104,10 @@ object LLMEndpointBuilder {
             .systemMessageProvider { _ -> config.config.llmEndPoints.sqlGeneration.sqlGenerationEndpoint.systemPrompt }
             .build()
 
-        fun buildTableRefinementEndpoint(config: InferConfig): TableRefinementEndpoint = AiServices
-            .builder(TableRefinementEndpoint::class.java)
-            .chatModel(config.llmModels[config.config.llmEndPoints.sqlGeneration.tableDescRefinementEndpoint.modelName])
-            .systemMessageProvider { _ -> config.config.llmEndPoints.sqlGeneration.tableDescRefinementEndpoint.systemPrompt }
+        fun buildTblSelectionAdjustEndpoint(config: InferConfig): TblSelectionAdjustEndpoint = AiServices
+            .builder(TblSelectionAdjustEndpoint::class.java)
+            .chatModel(config.llmModels[config.config.llmEndPoints.sqlGeneration.tableSelectionAdjustEndpoint.modelName])
+            .systemMessageProvider { _ -> config.config.llmEndPoints.sqlGeneration.tableSelectionAdjustEndpoint.systemPrompt }
             .build()
     }
 }

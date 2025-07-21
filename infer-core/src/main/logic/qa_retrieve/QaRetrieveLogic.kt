@@ -52,7 +52,7 @@ class QaRetrieveRepository(
                     .map { schemaDotTableNameFormat.find(it)?.groupValues?.get(1) ?: it }
 
                 val sourceTblDocs = sourceTblNames.map { name -> findDocByTableName(name)!! }
-                QaRetrieveResult(qaDto.structuredQa, dist, sourceTblDocs, serachLevel)
+                QaRetrieveResult(qaDto.structuredQa, qaDto.answer, dist, sourceTblDocs, serachLevel)
             }
     }
 
@@ -68,6 +68,7 @@ class QaRetrieveRepository(
 @Serializable
 data class QaRetrieveResult(
     val qa: StructuredQa,
+    val answer: String,
     val dist: Float,
     val sourceTables: List<TableDesc>,
     val searchLevel: Int
@@ -123,7 +124,7 @@ class QaRetrieveLogic(
         qaRetrieveRepo.retrieve(
             question.mainClause.await(),
             level3MaxDist,
-            listOf(EmbeddingType.QUESTION, EmbeddingType.NORMALIZED_QUESTION, EmbeddingType.VARIATION),
+            listOf(EmbeddingType.REQUESTED_ENTITIES),
             3
         )
     )

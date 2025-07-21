@@ -16,6 +16,7 @@ dependencies:
   - { groupId: dev.langchain4j, artifactId: langchain4j-open-ai, version: '${dep.langchain4j}' }
   - { groupId: dev.langchain4j, artifactId: langchain4j, version: '${dep.langchain4j}' }
   - { groupId: org.jetbrains.kotlinx, artifactId: kotlinx-serialization-json, version: '${dep.kotlinx-json}' }
+  - { groupId: io.github.pdvrieze.xmlutil, artifactId: serialization-jvm, version: '0.91.1' }
   - { groupId: com.charleskorn.kaml, artifactId: kaml-jvm, version: '${dep.kaml}' }
   - { groupId: com.fasterxml.jackson.module, artifactId: jackson-module-kotlin, version: '${dep.jackson-kotlin}' }
   - { groupId: org.jetbrains.exposed, artifactId: exposed-core, version: '${dep.exposed}' }

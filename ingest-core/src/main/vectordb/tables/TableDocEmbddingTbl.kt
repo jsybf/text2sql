@@ -12,7 +12,5 @@ object TableDocEmbddingTbl : IntIdTable("table_doc_embedding", "table_doc_embedd
     val embeddingCategory = enumerationByName<EmbeddingCategory>("embedding_category", 40)
 
     @Serializable
-    enum class EmbeddingCategory {
-        CONNECTED_TABLES, TABLE_NAME, DESCRIPTION, DESCRIPTION_DEPENDENCIES, ENTITY
-    }
+    enum class EmbeddingCategory { SUMMARY, ENTITY }
 }
