@@ -62,7 +62,7 @@ class SqlGenerateLogic(
 
         return """
         <database_dialect>${dialect}</database_dialect>
-        <question>${question}</question>
+        <question>${question.question}</question>
         <table_description>
             ${tblDescStr}
         </table_description>
