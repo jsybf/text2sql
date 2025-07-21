@@ -14,12 +14,12 @@ import kotlin.io.path.readText
 
 fun main(args: Array<String>) = io.ktor.server.netty.EngineMain.main(args)
 
-fun readInferConfig(path: Path): InferConfig =
+fun readInferConfig(path: Path, listeners: List<dev.langchain4j.model.chat.listener.ChatModelListener>): InferConfig =
     path
         .toAbsolutePath()
         .normalize()
         .readText()
-        .let { InferConfig.fromConfigFile(path) }
+        .let { InferConfig.fromConfigFile(path, listeners) }
 
 fun Application.module() {
     // read config file
@@ -29,12 +29,15 @@ fun Application.module() {
         .getString()
         .let { Path.of(it) }
 
-    val inferConfig = readInferConfig(inferConfigFilePath)
+    val traceListener = Langchain4jTraceListener()
+
+    val inferConfig = readInferConfig(inferConfigFilePath, listOf(traceListener))
 
     // create class instances
     val inferService = InferService(
         Inferer.fromConfig(inferConfig),
-        inferConfig
+        inferConfig,
+        traceListener
     )
 
 

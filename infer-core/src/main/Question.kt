@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 
 class Question(
     val question: String,
+    val userId: String? = null,
     private val questionNormalizeEndpoint: QuestionNormalizeEndpoint,
     private val questionMainClauseExtractionEndpoint: QuestionMainClauseExtractionEndpoint,
     private val questionEntityExtractionEndpoint: QuestionEntityExtractionEndpoint,
@@ -37,8 +38,9 @@ class Question(
         }
 
     companion object {
-        fun fromConfig(question: String, config: InferConfig, dispatcher: CoroutineDispatcher = Dispatchers.IO) = Question(
+        fun fromConfig(question: String, config: InferConfig, dispatcher: CoroutineDispatcher = Dispatchers.IO,userId: String? = null) = Question(
             question,
+            userId,
             LLMEndpointBuilder.QuestionTransform.buildQuestionNormalizeEndpoint(config),
             LLMEndpointBuilder.QuestionTransform.buildQuestionMainClauseExtractionEndpoint(config),
             LLMEndpointBuilder.QuestionTransform.buildQuestionEntityExtractionEndpoint(config),
